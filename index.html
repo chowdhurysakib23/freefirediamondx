@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold Earning App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- GSAP for Animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a, #4c1d95);
+            min-height: 100vh;
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        .btn {
+            background: linear-gradient(to right, #f59e0b, #ef4444);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.5);
+        }
+        .btn:disabled {
+            background: gray;
+            cursor: not-allowed;
+        }
+        .mission-card {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .congrats-message {
+            background: rgba(34, 197, 94, 0.9);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+            animation: fadeInOut 3s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(20px); }
+        }
+        .ad-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .ad-content {
+            background: white;
+            width: 80%;
+            max-width: 400px;
+            height: 700px;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        .countdown {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 1rem;
+            color: #f59e0b;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center p-4">
+    <div id="mainContent" class="card w-full max-w-md">
+        <h1 class="text-3xl font-bold text-center mb-6">Gold Earning App</h1>
+        
+        <!-- Gold Balance -->
+        <div class="mb-6 text-center">
+            <p class="text-lg">Your Gold: <span id="goldBalance" class="font-bold">0</span></p>
+        </div>
+        
+        <!-- Congratulations Message -->
+        <div id="congratsMessage" class="congrats-message mb-4 hidden">
+            Congratulations! You've earned 0.20 Gold!
+        </div>
+        
+        <!-- Watch Ad Button -->
+        <button id="watchAdBtn" class="btn w-full py-3 rounded-lg text-white font-semibold mb-6">
+            Watch Ad (+0.20 Gold)
+        </button>
+        
+        <!-- Withdrawal Form -->
+        <form id="withdrawForm" class="space-y-4">
+            <div>
+                <label for="userName" class="block text-sm font-medium">Your Name</label>
+                <input type="text" id="userName" class="w-full p-2 mt-1 rounded bg-gray-800 text-white uppercase" placeholder="Enter Name" required>
+            </div>
+            <div>
+                <label for="freeFireUID" class="block text-sm font-medium">Free Fire UID (8-10 digits)</label>
+                <input type="number" id="freeFireUID" class="w-full p-2 mt-1 rounded bg-gray-800 text-white" placeholder="Enter UID" required>
+            </div>
+            <div>
+                <label for="withdrawOption" class="block text-sm font-medium">Select Withdrawal</label>
+                <select id="withdrawOption" class="w-full p-2 mt-1 rounded bg-gray-800 text-white" required>
+                    <option value="" disabled selected>Select Option</option>
+                    <option value="100-25">100 Gold = 25 Diamonds</option>
+                    <option value="190-50">190 Gold = 50 Diamonds</option>
+                    <option value="300-115">300 Gold = 115 Diamonds</option>
+                </select>
+            </div>
+            <button type="submit" class="btn w-full py-3 rounded-lg text-white font-semibold">Withdraw</button>
+        </form>
+        
+        <!-- Withdrawal Code Display -->
+        <div id="withdrawCode" class="mt-6 hidden text-center">
+            <p>Your Withdrawal Code: <span id="codeValue" class="font-bold"></span></p>
+        </div>
+        
+        <!-- Mission Section -->
+        <div class="mt-8">
+            <h2 class="text-xl font-semibold mb-4">Missions</h2>
+            <div class="mission-card card p-4">
+                <p class="font-medium">Mission: Watch 5 Ads</p>
+                <p class="text-sm">Reward: +1 Bonus Gold</p>
+                <button class="btn mt-2 py-2 px-4 rounded-lg text-white text-sm">Claim Reward</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ad Container -->
+    <div id="adContainer" class="ad-container hidden">
+        <div class="ad-content">
+            <!-- Placeholder Ad (Replace with Adsterra iframe or content) -->
+            <img src="https://via.placeholder.com/600x400?text=Adsterra+Ad" alt="Ad" style="width: 100%; height: 100%;">
+        </div>
+        <div class="countdown" id="countdown">10</div>
+    </div>
+
+    <script>
+        // Initialize gold balance from localStorage
+        let goldBalance = parseFloat(localStorage.getItem("goldBalance") || "0");
+        let adTimer = null;
+        let isAdActive = false;
+        const adLink = "https://via.placeholder.com/600x400?text=Adsterra+Ad"; // Replace with actual Adsterra iframe or content
+        let lastAdViewTime = parseInt(localStorage.getItem("lastAdViewTime") || "0");
+
+        // Update Gold Balance and save to localStorage
+        const goldBalanceElement = document.getElementById("goldBalance");
+        function updateGoldBalance() {
+            goldBalanceElement.textContent = goldBalance.toFixed(2);
+            localStorage.setItem("goldBalance", goldBalance);
+        }
+
+        // Load initial balance
+        updateGoldBalance();
+
+        // Watch Ad
+        document.getElementById("watchAdBtn").addEventListener("click", () => {
+            // Prevent rapid ad views (10-second cooldown)
+            const currentTime = Date.now();
+            if (currentTime - lastAdViewTime < 10000) {
+                alert("Please wait a few seconds before watching another ad!");
+                return;
+            }
+
+            // Disable button and show ad
+            const watchAdBtn = document.getElementById("watchAdBtn");
+            watchAdBtn.disabled = true;
+            watchAdBtn.textContent = "Watching Ad...";
+            lastAdViewTime = currentTime;
+            localStorage.setItem("lastAdViewTime", lastAdViewTime);
+
+            // Show ad container
+            const adContainer = document.getElementById("adContainer");
+            const mainContent = document.getElementById("mainContent");
+            adContainer.classList.remove("hidden");
+            mainContent.classList.add("hidden");
+            isAdActive = true;
+
+            // Start 10-second countdown
+            let seconds = 10;
+            const countdownElement = document.getElementById("countdown");
+            countdownElement.textContent = seconds;
+            gsap.from("#adContainer", { opacity: 0, scale: 0.8, duration: 0.5 });
+
+            adTimer = setInterval(() => {
+                seconds--;
+                countdownElement.textContent = seconds;
+                if (seconds <= 0) {
+                    clearInterval(adTimer);
+                    if (isAdActive) {
+                        // Award gold and show congratulations
+                        goldBalance += 1000;
+                        updateGoldBalance();
+                        const congratsMessage = document.getElementById("congratsMessage");
+                        congratsMessage.classList.remove("hidden");
+                        gsap.fromTo("#congratsMessage", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5 });
+                        setTimeout(() => {
+                            congratsMessage.classList.add("hidden");
+                        }, 3000);
+                        gsap.fromTo("#goldBalance", { scale: 1.5 }, { scale: 1, duration: 0.5 });
+                    }
+                    // Reset UI
+                    adContainer.classList.add("hidden");
+                    mainContent.classList.remove("hidden");
+                    watchAdBtn.disabled = false;
+                    watchAdBtn.textContent = "Watch Ad (+0.20 Gold)";
+                    isAdActive = false;
+                }
+            }, 1000);
+
+            window.addEventListener("beforeunload", () => {
+                if (isAdActive) {
+                    clearInterval(adTimer);
+                    isAdActive = false;
+                }
+            });
+        });
+
+        // Withdrawal Form
+        document.getElementById("withdrawForm").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const userName = document.getElementById("userName").value.toUpperCase();
+            const freeFireUID = document.getElementById("freeFireUID").value;
+            const withdrawOption = document.getElementById("withdrawOption").value;
+
+            // Validate UID
+            if (!/^\d{8,10}$/.test(freeFireUID)) {
+                alert("Free Fire UID must be 8-10 digits.");
+                return;
+            }
+
+            // Parse Withdrawal Option
+            const [gold, diamonds] = withdrawOption.split("-").map(Number);
+            if (goldBalance < gold) {
+                alert("Insufficient Gold Balance!");
+                return;
+            }
+
+            // Load previously used codes
+            let usedCodes = JSON.parse(localStorage.getItem("usedCodes") || "[]");
+
+            // Generate a unique 6-digit random code
+            let code;
+            do {
+                code = Math.floor(100000 + Math.random() * 900000).toString();
+            } while (usedCodes.some(entry => entry.code === code));
+
+            // Deduct Gold and Update Balance
+            goldBalance -= gold;
+            updateGoldBalance();
+            document.getElementById("codeValue").textContent = code;
+            document.getElementById("withdrawCode").classList.remove("hidden");
+
+            // Animate Code Display
+            gsap.from("#withdrawCode", { opacity: 0, y: 20, duration: 1 });
+
+            // Save this code usage
+            usedCodes.push({ code, userName, freeFireUID, gold, diamonds });
+            localStorage.setItem("usedCodes", JSON.stringify(usedCodes));
+
+            // Reset Form
+            e.target.reset();
+        });
+
+        // GSAP Animations for UI
+        gsap.from(".card", { opacity: 0, y: 50, duration: 1, ease: "power2.out" });
+    </script>
+</body>
+</html>
